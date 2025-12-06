@@ -30,4 +30,6 @@ public interface BookingService {
     void deleteBooking(Long id);
 
     Booking updateStatus(Long id, String confirmed);
+
+    Booking checkInBooking(Long id);
 }

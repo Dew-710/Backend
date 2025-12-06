@@ -21,6 +21,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:3000"
         ));
+    
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
@@ -36,8 +37,9 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-                // Disable CORS for WebSocket - it uses different mechanism
-                .cors(cors -> cors.disable())
+                // Enable CORS for HTTP requests
+                
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // IMPORTANT: WebSocket requests must bypass security
                 // Cho phép tất cả requests (đơn giản hóa cho demo)

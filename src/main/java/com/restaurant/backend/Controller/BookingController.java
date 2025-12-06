@@ -1,7 +1,10 @@
 package com.restaurant.backend.Controller;
 
 import com.restaurant.backend.Entity.Booking;
+import com.restaurant.backend.Entity.RestaurantTable;
+import com.restaurant.backend.Entity.User;
 import com.restaurant.backend.Service.BookingService;
+import com.restaurant.backend.Service.RestaurantTableService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,20 +24,57 @@ public class BookingController {
         this.tableService = tableService;
     }
 
-    // Create booking with table availability check
+    // Tạo booking với kiểm tra tính khả dụng của bàn
     @PostMapping("/create")
-    public ResponseEntity<?> create(@RequestBody Booking booking) {
-        Booking created = bookingService.createBooking(booking);
-        return ResponseEntity.ok(
-                Map.of(
-                        "message", "Booking created successfully",
-                        "booking", created,
-                        "bookingCode", "BK" + created.getId() // Simple booking code
-                )
-        );
+    public ResponseEntity<?> create(@RequestBody Map<String, Object> bookingData) {
+        try {
+            System.out.println("Creating booking with data: " + bookingData);
+
+            // Tạo object booking từ dữ liệu request
+            Booking booking = new Booking();
+            booking.setCustomer(new User());
+            booking.getCustomer().setId(Long.valueOf(bookingData.get("customerId").toString()));
+
+            if (bookingData.containsKey("tableId") && bookingData.get("tableId") != null) {
+                Long tableId = Long.valueOf(bookingData.get("tableId").toString());
+                System.out.println("Setting table ID: " + tableId);
+
+                // Lấy thông tin bàn thực tế từ database
+                RestaurantTable table = tableService.findById(tableId);
+                if (table == null) {
+                    throw new RuntimeException("Table not found with id: " + tableId);
+                }
+                booking.setTable(table);
+                System.out.println("Table set successfully: " + table.getTableName());
+            } else {
+                System.out.println("No tableId provided in booking data");
+                throw new RuntimeException("Table ID is required for booking");
+            }
+
+            booking.setDate(java.time.LocalDate.parse(bookingData.get("date").toString()));
+            booking.setTime(java.time.LocalTime.parse(bookingData.get("time").toString()));
+            booking.setGuests(Integer.valueOf(bookingData.get("guests").toString()));
+
+            if (bookingData.containsKey("notes") && bookingData.get("notes") != null) {
+                booking.setNote(bookingData.get("notes").toString());
+            }
+
+            Booking created = bookingService.createBooking(booking);
+            return ResponseEntity.ok(
+                    Map.of(
+                            "message", "Booking created successfully",
+                            "booking", created,
+                            "bookingCode", "BK" + created.getId() // Simple booking code
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("message", "Failed to create booking: " + e.getMessage())
+            );
+        }
     }
 
-    // Check table availability for specific date and time
+    // Kiểm tra tính khả dụng của bàn cho ngày và giờ cụ thể
     @GetMapping("/availability")
     public ResponseEntity<?> checkAvailability(@RequestParam java.time.LocalDate date,
                                              @RequestParam java.time.LocalTime time,
@@ -54,7 +94,7 @@ public class BookingController {
         );
     }
 
-    // Suggest suitable tables for booking
+    // Đề xuất bàn phù hợp cho đặt bàn
     @GetMapping("/suggest-tables")
     public ResponseEntity<?> suggestTables(@RequestParam int guests) {
         List<com.restaurant.backend.Entity.RestaurantTable> suggestedTables =
@@ -133,9 +173,21 @@ public class BookingController {
         );
     }
 
+    // Check-in booking (khách hàng đã đến, bàn chuyển thành OCCUPIED)
+    @PutMapping("/{id}/checkin")
+    public ResponseEntity<?> checkIn(@PathVariable Long id) {
+        Booking booking = bookingService.checkInBooking(id);
+        return ResponseEntity.ok(
+                Map.of(
+                        "message", "Check-in successful, table is now occupied",
+                        "booking", booking
+                )
+        );
+    }
+
     @PutMapping("/{id}/cancel")
     public ResponseEntity<?> cancel(@PathVariable Long id) {
-        Booking booking = bookingService.updateStatus(id, "CANCELED");
+        Booking booking = bookingService.updateStatus(id, "CANCELLED");
         return ResponseEntity.ok(
                 Map.of(
                         "message", "Booking canceled successfully",

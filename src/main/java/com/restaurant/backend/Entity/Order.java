@@ -21,9 +21,9 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // user = khách hàng
+    // user = khách hàng (nullable nếu khách không đặt bàn - walk-in)
     @ManyToOne
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id")
     private User customer;
 
     // user = nhân viên nhận đơn

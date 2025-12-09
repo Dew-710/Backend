@@ -5,7 +5,10 @@ import com.restaurant.backend.Entity.RestaurantTable;
 import com.restaurant.backend.Entity.User;
 import com.restaurant.backend.Service.BookingService;
 import com.restaurant.backend.Service.RestaurantTableService;
+import com.restaurant.backend.Service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,11 +20,14 @@ public class BookingController {
 
     private final BookingService bookingService;
     private final com.restaurant.backend.Service.RestaurantTableService tableService;
+    private final UserService userService;
 
     public BookingController(BookingService bookingService,
-                           com.restaurant.backend.Service.RestaurantTableService tableService) {
+                           com.restaurant.backend.Service.RestaurantTableService tableService,
+                           UserService userService) {
         this.bookingService = bookingService;
         this.tableService = tableService;
+        this.userService = userService;
     }
 
     // Tạo booking với kiểm tra tính khả dụng của bàn
@@ -120,6 +126,36 @@ public class BookingController {
         );
     }
 
+    // Get active booking for a table (CONFIRMED or CHECKED_IN)
+    @GetMapping("/table/{tableId}/active")
+    public ResponseEntity<?> getActiveBookingByTable(@PathVariable Long tableId) {
+        List<Booking> bookings = bookingService.getBookingsByTable(tableId);
+        
+        // Find active booking (CONFIRMED or CHECKED_IN)
+        Booking activeBooking = bookings.stream()
+            .filter(b -> b.getStatus() != null && 
+                        (b.getStatus().equals("CONFIRMED") || b.getStatus().equals("CHECKED_IN")))
+            .findFirst()
+            .orElse(null);
+
+        if (activeBooking == null) {
+            return ResponseEntity.ok(
+                Map.of(
+                    "message", "No active booking for this table",
+                    "hasActiveBooking", false
+                )
+            );
+        }
+
+        return ResponseEntity.ok(
+            Map.of(
+                "message", "Active booking found",
+                "hasActiveBooking", true,
+                "booking", activeBooking
+            )
+        );
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable Long id) {
         Booking booking = bookingService.getBookingById(id);
@@ -192,6 +228,38 @@ public class BookingController {
                 Map.of(
                         "message", "Booking canceled successfully",
                         "booking", booking
+                )
+        );
+    }
+
+    // Get current customer's bookings
+    @GetMapping("/my-bookings")
+    public ResponseEntity<?> getMyBookings(@RequestParam(required = false) Long customerId) {
+        if (customerId == null) {
+            // Try to get from authentication context if available
+            try {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication != null && authentication.isAuthenticated() && !authentication.getName().equals("anonymousUser")) {
+                    String username = authentication.getName();
+                    User currentUser = userService.findByUsername(username);
+                    if (currentUser != null) {
+                        customerId = currentUser.getId();
+                    }
+                }
+            } catch (Exception e) {
+                // Authentication not available, customerId must be provided
+            }
+        }
+
+        if (customerId == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Customer ID is required"));
+        }
+
+        List<Booking> bookings = bookingService.getBookingsByCustomer(customerId);
+        return ResponseEntity.ok(
+                Map.of(
+                        "message", "Customer bookings retrieved successfully",
+                        "bookings", bookings
                 )
         );
     }

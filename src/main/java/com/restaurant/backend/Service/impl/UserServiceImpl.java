@@ -43,7 +43,10 @@ public class UserServiceImpl implements UserService {
         user.setPhone(orderDTO.getPhone());
         user.setEmail(orderDTO.getEmail());
         user.setRole(orderDTO.getRole() != null ? orderDTO.getRole() : "CUSTOMER");
-        user.setCreatedAt(LocalDateTime.now());
+        user.setStatus("ACTIVE");
+        LocalDateTime now = LocalDateTime.now();
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
         return userRepository.save(user);
     }
 

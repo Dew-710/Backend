@@ -215,4 +215,16 @@ public class BookingServiceImpl implements BookingService {
         // For now, return null - this would need database changes
         return null;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Booking> getBookingsByCustomer(Long customerId) {
+        return bookingRepository.findByCustomerId(customerId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Booking> getBookingsByTable(Long tableId) {
+        return bookingRepository.findByTable_Id(tableId);
+    }
 }
